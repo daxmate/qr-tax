@@ -24,7 +24,7 @@
     border-radius: 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.06);
     padding: 40px;
-    max-width: 560px;
+    max-width: 600px;
     width: 100%;
   }
 
@@ -41,9 +41,10 @@
     text-align: center;
     color: #94a3b8;
     font-size: 14px;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
   }
 
+  /* ---- QR ---- */
   .qr-wrapper {
     display: flex;
     justify-content: center;
@@ -65,7 +66,6 @@
     width: 320px;
     height: 320px;
     background: #f8fafc;
-    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -73,6 +73,37 @@
     font-size: 14px;
   }
 
+  /* ---- 模式切换 ---- */
+  .mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 3px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 8px 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+  .mode-tab.active {
+    background: #fff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .mode-tab:hover:not(.active) { color: #334155; }
+
+  /* ---- Controls ---- */
   .controls {
     display: flex;
     flex-direction: column;
@@ -92,22 +123,55 @@
     letter-spacing: 0.02em;
   }
 
-  .control-group input[type="text"] {
+  .control-group input[type="text"],
+  .control-group input[type="number"] {
     padding: 10px 14px;
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    font-size: 15px;
+    font-size: 14px;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
     background: #fafbfc;
+    width: 100%;
   }
 
-  .control-group input[type="text"]:focus {
+  .control-group input[type="text"]:focus,
+  .control-group input[type="number"]:focus {
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
     background: #fff;
   }
 
+  .control-group input[readonly] {
+    background: #f8fafc;
+    color: #64748b;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 13px;
+    cursor: default;
+  }
+
+  /* 发票字段 2 列网格 */
+  .invoice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .invoice-grid .control-group label {
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .invoice-grid .control-group input {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .invoice-grid .span-2 {
+    grid-column: 1 / -1;
+  }
+
+  /* ---- Color row ---- */
   .color-row {
     display: flex;
     gap: 16px;
@@ -133,6 +197,7 @@
     box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
   }
 
+  /* ---- Buttons ---- */
   .btn-row {
     display: flex;
     gap: 10px;
@@ -171,6 +236,7 @@
 
   .btn:active { transform: scale(0.97); }
 
+  /* ---- Misc ---- */
   .size-hint {
     display: flex;
     justify-content: space-between;
@@ -206,11 +272,15 @@
     border: 1px solid #e2e8f0;
   }
 
-  @media (max-width: 500px) {
+  /* ---- Hidden ---- */
+  .hidden { display: none; }
+
+  @media (max-width: 560px) {
     .container { padding: 24px 20px; }
     .btn-row { flex-wrap: wrap; }
     .btn { min-width: calc(50% - 5px); }
     .color-row { flex-direction: column; gap: 12px; }
+    .invoice-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -224,12 +294,65 @@
     <div id="qr-container"><div class="placeholder">生成中…</div></div>
   </div>
 
+  <div id="mode-tabs" class="mode-tabs">
+    <button class="mode-tab active" data-mode="invoice">📄 电子发票</button>
+    <button class="mode-tab" data-mode="custom">✏️ 自定义文本</button>
+  </div>
+
   <div class="controls">
-    <div class="control-group">
-      <label>内容</label>
-      <input type="text" id="text-input" value="https://example.com/tax" placeholder="输入网址或文本…">
+
+    <!-- ===== 发票模式 ===== -->
+    <div id="invoice-panel">
+      <div class="invoice-grid">
+        <div class="control-group">
+          <label>① 版本标识</label>
+          <input type="text" class="inv-field" data-idx="0" value="01" placeholder="01">
+        </div>
+        <div class="control-group">
+          <label>② 发票类型</label>
+          <input type="text" class="inv-field" data-idx="1" value="32" placeholder="32">
+        </div>
+        <div class="control-group">
+          <label>③ 发票代码</label>
+          <input type="text" class="inv-field" data-idx="2" value="" placeholder="数电票为空">
+        </div>
+        <div class="control-group">
+          <label>④ 发票号码</label>
+          <input type="text" class="inv-field" data-idx="3" value="26322000006250596931" placeholder="20 位发票号码">
+        </div>
+        <div class="control-group">
+          <label>⑤ 金额</label>
+          <input type="text" class="inv-field" data-idx="4" value="448.00" placeholder="含税金额">
+        </div>
+        <div class="control-group">
+          <label>⑥ 开票日期</label>
+          <input type="text" class="inv-field" data-idx="5" value="20260729" placeholder="YYYYMMDD">
+        </div>
+        <div class="control-group">
+          <label>⑦ 校验码</label>
+          <input type="text" class="inv-field" data-idx="6" value="" placeholder="数电票为空">
+        </div>
+        <div class="control-group">
+          <label>⑧ 加密信息</label>
+          <input type="text" class="inv-field" data-idx="7" value="E867" placeholder="加密字符">
+        </div>
+      </div>
+
+      <div class="control-group" style="margin-top:12px">
+        <label>拼接结果</label>
+        <input type="text" id="invoice-result" readonly value="01,32,,26322000006250596931,448.00,20260729,,E867">
+      </div>
     </div>
 
+    <!-- ===== 自定义文本模式 ===== -->
+    <div id="custom-panel" class="hidden">
+      <div class="control-group">
+        <label>内容</label>
+        <input type="text" id="text-input" value="https://example.com/tax" placeholder="输入网址或文本…">
+      </div>
+    </div>
+
+    <!-- ---- 公共控制 ---- -->
     <div class="control-group">
       <label>尺寸</label>
       <input type="range" id="size-range" min="200" max="600" value="320" step="10">
@@ -261,17 +384,67 @@
 
 <script>
 (function() {
-  var container  = document.getElementById('qr-container');
-  var textInput  = document.getElementById('text-input');
-  var sizeRange  = document.getElementById('size-range');
-  var sizeLabel  = document.getElementById('size-label');
-  var darkColor  = document.getElementById('dark-color');
-  var lightColor = document.getElementById('light-color');
-  var genBtn     = document.getElementById('generate-btn');
-  var dldBtn     = document.getElementById('download-btn');
-  var copyBtn    = document.getElementById('copy-btn');
+  // ---- DOM refs ----
+  var container     = document.getElementById('qr-container');
+  var textInput     = document.getElementById('text-input');
+  var sizeRange     = document.getElementById('size-range');
+  var sizeLabel     = document.getElementById('size-label');
+  var darkColor     = document.getElementById('dark-color');
+  var lightColor    = document.getElementById('light-color');
+  var genBtn        = document.getElementById('generate-btn');
+  var dldBtn        = document.getElementById('download-btn');
+  var copyBtn       = document.getElementById('copy-btn');
+  var invoicePanel  = document.getElementById('invoice-panel');
+  var customPanel   = document.getElementById('custom-panel');
+  var invoiceResult = document.getElementById('invoice-result');
+  var invFields     = document.querySelectorAll('.inv-field');
+  var modeTabs      = document.querySelectorAll('.mode-tab');
 
-  // ---- 工具：圆角矩形 ----
+  var currentMode = 'invoice'; // 'invoice' | 'custom'
+
+  // ---- 拼接发票字段 ----
+  function buildInvoiceString() {
+    var parts = [];
+    invFields.forEach(function(f) { parts.push(f.value); });
+    return parts.join(',');
+  }
+
+  function updateInvoiceResult() {
+    invoiceResult.value = buildInvoiceString();
+  }
+
+  invFields.forEach(function(f) {
+    f.addEventListener('input', updateInvoiceResult);
+  });
+
+  // ---- 获取当前 QR 内容 ----
+  function getContent() {
+    if (currentMode === 'invoice') {
+      return buildInvoiceString();
+    } else {
+      return textInput.value.trim();
+    }
+  }
+
+  // ---- 模式切换 ----
+  modeTabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      modeTabs.forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      currentMode = tab.dataset.mode;
+
+      if (currentMode === 'invoice') {
+        invoicePanel.classList.remove('hidden');
+        customPanel.classList.add('hidden');
+      } else {
+        invoicePanel.classList.add('hidden');
+        customPanel.classList.remove('hidden');
+      }
+      generate();
+    });
+  });
+
+  // ---- 工具：圆角矩形（保留备用） ----
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -288,7 +461,7 @@
 
   // ---- 核心渲染 ----
   function generate() {
-    var text = textInput.value.trim();
+    var text = getContent();
     if (!text) {
       container.innerHTML = '<div class="placeholder">请输入内容</div>';
       return;
@@ -303,7 +476,7 @@
     canvas.height = size;
     var ctx = canvas.getContext('2d');
 
-    // ---- 1. 生成 QR 码 ----
+    // QR 码
     var qr = qrcode(0, 'H');
     qr.addData(text);
     qr.make();
@@ -318,12 +491,11 @@
       }
     }
 
-    // ---- 2. 中心 Logo：白色圆角方底 + 淡黄色「税」（无衬线） ----
+    // 中心「税」字 Logo
     var logoSize = Math.round(size * 0.20);
     var logoX = (size - logoSize) / 2;
     var logoY = (size - logoSize) / 2;
 
-    // 白色方底（直角无圆角）
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(logoX, logoY, logoSize, logoSize);
@@ -395,19 +567,25 @@
   darkColor.addEventListener('input', autoGen);
   lightColor.addEventListener('input', autoGen);
   sizeRange.addEventListener('input', autoGen);
+  invFields.forEach(function(f) {
+    f.addEventListener('input', autoGen);
+  });
 
   // ---- 启动 ----
-  if (typeof qrcode !== 'undefined') {
-    generate();
-  } else {
-    container.innerHTML = '<div class="placeholder">加载中…</div>';
-    var chk = setInterval(function() {
-      if (typeof qrcode !== 'undefined') {
-        clearInterval(chk);
-        generate();
-      }
-    }, 100);
+  function boot() {
+    if (typeof qrcode !== 'undefined') {
+      generate();
+    } else {
+      container.innerHTML = '<div class="placeholder">加载中…</div>';
+      var chk = setInterval(function() {
+        if (typeof qrcode !== 'undefined') {
+          clearInterval(chk);
+          generate();
+        }
+      }, 100);
+    }
   }
+  boot();
 })();
 </script>
 </body>
