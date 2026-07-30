@@ -180,7 +180,7 @@
   .color-row {
     display: flex;
     gap: 16px;
-    align-items: flex-end;
+    align-items: flex-start;
   }
 
   .color-row .control-group {
@@ -280,23 +280,25 @@
   /* ---- Hidden ---- */
   .hidden { display: none; }
 
-  @media (max-width: 560px) {
-    .container { padding: 20px 16px; border-radius: 16px; }
+  @media (max-width: 768px) {
+    .container { padding: 20px 16px; border-radius: 16px; max-width: 100%; }
     .container h1 { font-size: 20px; }
-    .qr-wrapper { margin-bottom: 16px; }
+    .qr-wrapper { margin-bottom: 16px; overflow: hidden; }
     #qr-container { border-width: 4px; }
-    #qr-container canvas { max-width: 100%; height: auto !important; }
+    #qr-container canvas { max-width: 100%; height: auto !important; width: auto !important; }
     .placeholder { max-width: 100%; height: auto; aspect-ratio: 1; }
     .controls { gap: 12px; }
+    .invoice-grid { grid-template-columns: 1fr; gap: 8px; }
+    .invoice-grid .control-group input { font-size: 13px; padding: 7px 10px; }
     .control-group input[type="text"],
     .control-group input[type="number"],
     #invoice-result { font-size: 13px; padding: 8px 10px; }
     #invoice-result { word-break: break-all; white-space: normal; }
-    .invoice-grid { grid-template-columns: 1fr; gap: 8px; }
-    .invoice-grid .control-group input { font-size: 13px; padding: 7px 10px; }
     .btn-row { flex-wrap: wrap; gap: 8px; }
     .btn { min-width: calc(50% - 4px); font-size: 13px; padding: 10px; }
-    .color-row { flex-direction: column; gap: 10px; }
+    .color-row { flex-direction: column; gap: 8px; }
+    .color-row .control-group { flex: none; }
+    .color-row input[type="color"] { height: 38px; }
     .scanner-panel { max-width: 94vw; }
     .scanner-view { aspect-ratio: 1; }
   }
