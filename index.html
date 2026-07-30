@@ -281,11 +281,24 @@
   .hidden { display: none; }
 
   @media (max-width: 560px) {
-    .container { padding: 24px 20px; }
-    .btn-row { flex-wrap: wrap; }
-    .btn { min-width: calc(50% - 5px); }
-    .color-row { flex-direction: column; gap: 12px; }
-    .invoice-grid { grid-template-columns: 1fr; }
+    .container { padding: 20px 16px; border-radius: 16px; }
+    .container h1 { font-size: 20px; }
+    .qr-wrapper { margin-bottom: 16px; }
+    #qr-container { border-width: 4px; }
+    #qr-container canvas { max-width: 100%; height: auto !important; }
+    .placeholder { max-width: 100%; height: auto; aspect-ratio: 1; }
+    .controls { gap: 12px; }
+    .control-group input[type="text"],
+    .control-group input[type="number"],
+    #invoice-result { font-size: 13px; padding: 8px 10px; }
+    #invoice-result { word-break: break-all; white-space: normal; }
+    .invoice-grid { grid-template-columns: 1fr; gap: 8px; }
+    .invoice-grid .control-group input { font-size: 13px; padding: 7px 10px; }
+    .btn-row { flex-wrap: wrap; gap: 8px; }
+    .btn { min-width: calc(50% - 4px); font-size: 13px; padding: 10px; }
+    .color-row { flex-direction: column; gap: 10px; }
+    .scanner-panel { max-width: 94vw; }
+    .scanner-view { aspect-ratio: 1; }
   }
 
   /* ---- Scanner Modal ---- */
