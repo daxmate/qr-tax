@@ -500,6 +500,7 @@
       <button class="btn btn-primary" id="generate-btn">生成</button>
       <button class="btn btn-outline" id="download-btn">下载 PNG</button>
       <button class="btn btn-outline" id="copy-btn">复制</button>
+      <button class="btn btn-outline" id="export-pdf-btn">📤 PDF</button>
       <button class="btn btn-outline" id="scan-btn">📷 扫码</button>
       <input type="file" id="scan-input" accept="image/*" style="display:none">
       <button class="btn btn-outline" id="pdf-btn">📄 PDF</button>
@@ -848,6 +849,111 @@
   }
 
   pdfBtn.addEventListener('click', function() { pdfInput.click(); });
+
+  // ---- 导出 PDF ----
+  var exportPdfBtn = document.getElementById('export-pdf-btn');
+
+  function ensureJspdf(callback) {
+    if (typeof jspdf !== 'undefined') { callback(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+    s.onload = function() {
+      // Also ensure html2canvas for QR capture
+      if (typeof html2canvas !== 'undefined') { callback(); return; }
+      var s2 = document.createElement('script');
+      s2.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      s2.onload = callback;
+      s2.onerror = callback;
+      document.head.appendChild(s2);
+    };
+    s.onerror = function() {
+      exportPdfBtn.textContent = '❌ 加载失败';
+      setTimeout(function() { exportPdfBtn.textContent = '📤 PDF'; }, 2000);
+    };
+    document.head.appendChild(s);
+  }
+
+  exportPdfBtn.addEventListener('click', function() {
+    ensureJspdf(function() {
+      exportPdfBtn.textContent = '⏳ 生成中…';
+
+      var cvs = container.querySelector('canvas');
+      if (!cvs) { generate(); }
+
+      setTimeout(function() {
+        cvs = container.querySelector('canvas');
+        if (!cvs) { exportPdfBtn.textContent = '❌ 无二维码'; setTimeout(function() { exportPdfBtn.textContent = '📤 PDF'; }, 2000); return; }
+
+        var qrDataUrl = cvs.toDataURL('image/png');
+        var dark = darkColor.value;
+        var light = lightColor.value;
+
+        var doc = new jspdf.jsdoc();
+        var pageW = doc.internal.pageSize.getWidth();
+        var pageH = doc.internal.pageSize.getHeight();
+
+        // 标题
+        doc.setFontSize(18);
+        doc.setTextColor(79, 70, 229);
+        doc.text('电子发票', pageW / 2, 28, { align: 'center' });
+
+        // 分隔线
+        doc.setDrawColor(200, 200, 210);
+        doc.setLineWidth(0.5);
+        doc.line(20, 34, pageW - 20, 34);
+
+        // 二维码（右上角，70x70）
+        doc.addImage(qrDataUrl, 'PNG', pageW - 90, 42, 70, 70);
+
+        // 发票字段
+        doc.setFontSize(10);
+        var fields = [
+          ['发票号码', invFields[3].value],
+          ['开票日期', invFields[5].value],
+          ['金额', '¥' + invFields[4].value],
+          ['发票类型', invFields[1].value === '32' ? '增值税普通发票' : invFields[1].value],
+          ['加密信息', invFields[7].value]
+        ];
+
+        var x = 28, y = 52;
+        doc.setTextColor(100, 100, 120);
+        for (var i = 0; i < fields.length; i++) {
+          doc.setFontSize(9);
+          doc.setTextColor(140, 140, 160);
+          doc.text(fields[i][0] + '：', x, y);
+          doc.setTextColor(30, 30, 40);
+          doc.setFontSize(11);
+          doc.text(fields[i][1], x + 42, y);
+          y += 16;
+        }
+
+        // 完整二维码内容
+        y = Math.max(y, 120);
+        doc.setDrawColor(210, 210, 220);
+        doc.line(20, y + 4, pageW - 20, y + 4);
+        y += 14;
+        doc.setFontSize(8);
+        doc.setTextColor(140, 140, 160);
+        doc.text('二维码内容：', 20, y);
+        y += 6;
+        doc.setTextColor(80, 80, 100);
+        doc.setFontSize(8);
+        var content = getContent();
+        var lines = doc.splitTextToSize(content, pageW - 40);
+        doc.text(lines, 20, y);
+
+        // 底部
+        doc.setFontSize(8);
+        doc.setTextColor(180, 180, 190);
+        var footer = '由 二维码生成器 生成  |  ' + new Date().toISOString().slice(0, 10);
+        doc.text(footer, pageW / 2, pageH - 14, { align: 'center' });
+
+        doc.save('发票_修改版.pdf');
+        exportPdfBtn.textContent = '✅ 已导出';
+        setTimeout(function() { exportPdfBtn.textContent = '📤 PDF'; }, 2000);
+      }, 200);
+    });
+  });
 
   pdfInput.addEventListener('change', function(e) {
     var file = e.target.files[0];
