@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>二维码生成器</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -696,6 +695,20 @@
   var scanStream    = null;
   var scanRAF       = null;
 
+  // 动态加载 jsQR（按需，不阻塞页面）
+  var _jsQR = null;
+  function ensureJsQR(callback) {
+    if (typeof jsQR !== 'undefined') { callback(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    s.onload = callback;
+    s.onerror = function() {
+      scanBtn.textContent = '❌ 库加载失败';
+      setTimeout(function() { scanBtn.textContent = '📷 扫码'; }, 2000);
+    };
+    document.head.appendChild(s);
+  }
+
   // 共享的扫码成功处理
   function handleScanResult(decoded) {
     if (currentMode === 'invoice') {
@@ -742,8 +755,9 @@
 
   // 打开摄像头
   function startCamera() {
-    scannerModal.classList.remove('hidden');
-    navigator.mediaDevices.getUserMedia({
+    ensureJsQR(function() {
+      scannerModal.classList.remove('hidden');
+      navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
     }).then(function(stream) {
       scanStream = stream;
@@ -776,6 +790,7 @@
       scannerModal.classList.add('hidden');
       scanInput.click();
     });
+    });
   }
 
   // 上传文件解码
@@ -794,20 +809,22 @@
   scanInput.addEventListener('change', function(e) {
     var file = e.target.files[0];
     if (!file) return;
-    var img = new Image();
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      img.onload = function() {
-        if (decodeImage(img)) {
-          scanBtn.textContent = '✅ 成功';
-        } else {
-          scanBtn.textContent = '❌ 未识别';
-        }
-        setTimeout(function() { scanBtn.textContent = '📷 扫码'; }, 2000);
+    ensureJsQR(function() {
+      var img = new Image();
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        img.onload = function() {
+          if (decodeImage(img)) {
+            scanBtn.textContent = '✅ 成功';
+          } else {
+            scanBtn.textContent = '❌ 未识别';
+          }
+          setTimeout(function() { scanBtn.textContent = '📷 扫码'; }, 2000);
+        };
+        img.src = ev.target.result;
       };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
     scanInput.value = '';
   });
 
