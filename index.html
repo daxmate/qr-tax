@@ -288,6 +288,103 @@
     .color-row { flex-direction: column; gap: 12px; }
     .invoice-grid { grid-template-columns: 1fr; }
   }
+
+  /* ---- Scanner Modal ---- */
+  .scanner-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .scanner-overlay.hidden { display: none; }
+
+  .scanner-panel {
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.30);
+  }
+
+  .scanner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .scanner-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: #f1f5f9;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: background 0.15s;
+  }
+  .scanner-close:hover { background: #e2e8f0; }
+
+  .scanner-view {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    background: #000;
+    overflow: hidden;
+  }
+
+  .scanner-view video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60%;
+    height: 60%;
+    transform: translate(-50%, -50%);
+    border: 2px solid rgba(99,102,241,0.5);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.30);
+    pointer-events: none;
+  }
+
+  .scanner-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 13px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.50);
+    background: rgba(0,0,0,0.40);
+    padding: 6px 16px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .scanner-footer {
+    padding: 12px 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .scanner-footer .btn { flex: 1; }
+
 </style>
 </head>
 <body>
@@ -571,60 +668,134 @@
     });
   }
 
-  // ---- 扫码 ----
-  var scanBtn  = document.getElementById('scan-btn');
-  var scanInput = document.getElementById('scan-input');
+  // ---- 扫码（摄像头 + 文件上传） ----
+  var scanBtn       = document.getElementById('scan-btn');
+  var scanInput     = document.getElementById('scan-input');
+  var scannerModal  = document.getElementById('scanner-modal');
+  var scannerVideo  = document.getElementById('scanner-video');
+  var scannerClose  = document.getElementById('scanner-close');
+  var scannerUpload = document.getElementById('scanner-upload-btn');
+  var scanStream    = null;
+  var scanRAF       = null;
 
-  scanBtn.addEventListener('click', function() {
+  // 共享的扫码成功处理
+  function handleScanResult(decoded) {
+    if (currentMode === 'invoice') {
+      var parts = decoded.split(',');
+      if (parts.length === 8) {
+        invFields.forEach(function(f, i) { f.value = parts[i]; });
+        invoiceResult.value = decoded;
+        invoiceResult.classList.remove('error');
+      } else {
+        invoiceResult.value = decoded;
+      }
+    } else {
+      textInput.value = decoded;
+    }
+    generate();
+  }
+
+  // 解码图片
+  function decodeImage(imgEl) {
+    var c = document.createElement('canvas');
+    c.width  = imgEl.naturalWidth;
+    c.height = imgEl.naturalHeight;
+    var cx = c.getContext('2d');
+    cx.drawImage(imgEl, 0, 0);
+    var imageData = cx.getImageData(0, 0, c.width, c.height);
+    var code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code) {
+      handleScanResult(code.data.trim());
+      return true;
+    }
+    return false;
+  }
+
+  // 关闭摄像头扫描
+  function stopScanner() {
+    if (scanRAF) { cancelAnimationFrame(scanRAF); scanRAF = null; }
+    if (scanStream) {
+      scanStream.getTracks().forEach(function(t) { t.stop(); });
+      scanStream = null;
+    }
+    scannerModal.classList.add('hidden');
+    scannerVideo.srcObject = null;
+  }
+
+  // 打开摄像头
+  function startCamera() {
+    scannerModal.classList.remove('hidden');
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
+    }).then(function(stream) {
+      scanStream = stream;
+      scannerVideo.srcObject = stream;
+      scannerVideo.play();
+
+      // 连续扫码
+      var scanCanvas = document.createElement('canvas');
+      var scanCtx = scanCanvas.getContext('2d');
+
+      function tick() {
+        if (!scanStream) return;
+        if (scannerVideo.readyState >= 2) {
+          scanCanvas.width  = scannerVideo.videoWidth;
+          scanCanvas.height = scannerVideo.videoHeight;
+          scanCtx.drawImage(scannerVideo, 0, 0);
+          var imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+          var code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code) {
+            handleScanResult(code.data.trim());
+            stopScanner();
+            return;
+          }
+        }
+        scanRAF = requestAnimationFrame(tick);
+      }
+      scanRAF = requestAnimationFrame(tick);
+    }).catch(function() {
+      // 摄像头不可用，回退到文件上传
+      scannerModal.classList.add('hidden');
+      scanInput.click();
+    });
+  }
+
+  // 上传文件解码
+  function uploadAndDecode() {
     scanInput.click();
+  }
+
+  // ---- 事件绑定 ----
+  scanBtn.addEventListener('click', startCamera);
+  scannerClose.addEventListener('click', stopScanner);
+  scannerUpload.addEventListener('click', function() {
+    stopScanner();
+    setTimeout(function() { scanInput.click(); }, 100);
   });
 
   scanInput.addEventListener('change', function(e) {
     var file = e.target.files[0];
     if (!file) return;
-
     var img = new Image();
     var reader = new FileReader();
     reader.onload = function(ev) {
       img.onload = function() {
-        var canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-
-        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var code = jsQR(imageData.data, imageData.width, imageData.height);
-
-        if (code) {
-          var decoded = code.data.trim();
-          if (currentMode === 'invoice') {
-            // 尝试解析为发票格式
-            var parts = decoded.split(',');
-            if (parts.length === 8) {
-              invFields.forEach(function(f, i) { f.value = parts[i]; });
-              invoiceResult.value = decoded;
-              invoiceResult.classList.remove('error');
-            } else {
-              // 不符合发票格式，填入内容框
-              invoiceResult.value = decoded;
-            }
-          } else {
-            textInput.value = decoded;
-          }
-          generate();
-          scanBtn.textContent = '✅ 扫码成功';
-          setTimeout(function() { scanBtn.textContent = '📷 扫码'; }, 2000);
+        if (decodeImage(img)) {
+          scanBtn.textContent = '✅ 成功';
         } else {
           scanBtn.textContent = '❌ 未识别';
-          setTimeout(function() { scanBtn.textContent = '📷 扫码'; }, 2000);
         }
+        setTimeout(function() { scanBtn.textContent = '📷 扫码'; }, 2000);
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
-    // 重置 input 以便重复选择同文件
     scanInput.value = '';
+  });
+
+  // 点击遮罩层关闭
+  scannerModal.addEventListener('click', function(e) {
+    if (e.target === scannerModal) stopScanner();
   });
 
   // ---- 下载 ----
@@ -676,5 +847,24 @@
   boot();
 })();
 </script>
+
+<!-- ===== Camera Scanner Modal ===== -->
+<div id="scanner-modal" class="scanner-overlay hidden">
+  <div class="scanner-panel">
+    <div class="scanner-header">
+      <span>扫描二维码</span>
+      <button id="scanner-close" class="scanner-close">&times;</button>
+    </div>
+    <div class="scanner-view">
+      <video id="scanner-video" autoplay playsinline muted></video>
+      <div class="scanner-frame"></div>
+      <div class="scanner-hint">将二维码对准取景框</div>
+    </div>
+    <div class="scanner-footer">
+      <button class="btn btn-outline" id="scanner-upload-btn">📁 上传图片</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
