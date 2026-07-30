@@ -496,6 +496,8 @@
       <button class="btn btn-outline" id="copy-btn">复制</button>
       <button class="btn btn-outline" id="scan-btn">📷 扫码</button>
       <input type="file" id="scan-input" accept="image/*" style="display:none">
+      <button class="btn btn-outline" id="pdf-btn">📄 PDF</button>
+      <input type="file" id="pdf-input" accept=".pdf,application/pdf" style="display:none">
     </div>
   </div>
 </div>
@@ -818,6 +820,86 @@
   scannerUpload.addEventListener('click', function() {
     stopScanner();
     setTimeout(function() { scanInput.click(); }, 100);
+  });
+
+  // ---- PDF 导入 ----
+  var pdfBtn   = document.getElementById('pdf-btn');
+  var pdfInput = document.getElementById('pdf-input');
+
+  function ensurePdfJs(callback) {
+    if (typeof pdfjsLib !== 'undefined') { callback(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload = function() {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      callback();
+    };
+    s.onerror = function() {
+      pdfBtn.textContent = '❌ 库加载失败';
+      setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 2000);
+    };
+    document.head.appendChild(s);
+  }
+
+  pdfBtn.addEventListener('click', function() { pdfInput.click(); });
+
+  pdfInput.addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+
+    pdfBtn.textContent = '⏳ 解析中…';
+    ensurePdfJs(function() {
+      ensureJsQR(function() {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          var pdfData = new Uint8Array(ev.target.result);
+
+          pdfjsLib.getDocument({ data: pdfData }).promise.then(function(pdf) {
+            // 尝试所有页面，最多 3 页
+            var maxPages = Math.min(pdf.numPages, 3);
+            var scanPromises = [];
+
+            for (var p = 1; p <= maxPages; p++) {
+              scanPromises.push(
+                pdf.getPage(p).then(function(page) {
+                  var vp = page.getViewport({ scale: 2.0 });
+                  var canvas = document.createElement('canvas');
+                  canvas.width  = vp.width;
+                  canvas.height = vp.height;
+                  var ctx = canvas.getContext('2d');
+                  return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function() {
+                    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    return jsQR(imageData.data, imageData.width, imageData.height);
+                  });
+                })
+              );
+            }
+
+            return Promise.all(scanPromises).then(function(results) {
+              for (var i = 0; i < results.length; i++) {
+                if (results[i]) {
+                  return results[i];
+                }
+              }
+              return null;
+            });
+          }).then(function(code) {
+            if (code) {
+              handleScanResult(code.data.trim());
+              pdfBtn.textContent = '✅ 成功';
+            } else {
+              pdfBtn.textContent = '❌ 未找到二维码';
+            }
+            setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 2000);
+          }).catch(function(err) {
+            pdfBtn.textContent = '❌ 解析失败';
+            setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 2000);
+          });
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    });
+    pdfInput.value = '';
   });
 
   scanInput.addEventListener('change', function(e) {
