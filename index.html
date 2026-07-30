@@ -487,6 +487,24 @@
   </div>
 </div>
 
+<!-- ===== Camera Scanner Modal ===== -->
+<div id="scanner-modal" class="scanner-overlay hidden">
+  <div class="scanner-panel">
+    <div class="scanner-header">
+      <span>扫描二维码</span>
+      <button id="scanner-close" class="scanner-close">&times;</button>
+    </div>
+    <div class="scanner-view">
+      <video id="scanner-video" autoplay playsinline muted></video>
+      <div class="scanner-frame"></div>
+      <div class="scanner-hint">将二维码对准取景框</div>
+    </div>
+    <div class="scanner-footer">
+      <button class="btn btn-outline" id="scanner-upload-btn">📁 上传图片</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
   // ---- DOM refs ----
@@ -848,23 +866,6 @@
 })();
 </script>
 
-<!-- ===== Camera Scanner Modal ===== -->
-<div id="scanner-modal" class="scanner-overlay hidden">
-  <div class="scanner-panel">
-    <div class="scanner-header">
-      <span>扫描二维码</span>
-      <button id="scanner-close" class="scanner-close">&times;</button>
-    </div>
-    <div class="scanner-view">
-      <video id="scanner-video" autoplay playsinline muted></video>
-      <div class="scanner-frame"></div>
-      <div class="scanner-hint">将二维码对准取景框</div>
-    </div>
-    <div class="scanner-footer">
-      <button class="btn btn-outline" id="scanner-upload-btn">📁 上传图片</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
