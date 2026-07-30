@@ -142,6 +142,11 @@
     background: #fff;
   }
 
+  .control-group input.error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.10) !important;
+  }
+
   .control-group input[readonly] {
     background: #f8fafc;
     color: #64748b;
@@ -411,6 +416,7 @@
 
   function syncFieldsToContent() {
     invoiceResult.value = buildInvoiceString();
+    invoiceResult.classList.remove('error');
     generate();
   }
 
@@ -419,8 +425,26 @@
     f.addEventListener('input', syncFieldsToContent);
   });
 
-  // 内容框直接编辑 → 重绘（不回写字段）
-  invoiceResult.addEventListener('input', generate);
+  // 内容框直接编辑 → 解析回填字段 + 格式校验
+  function parseContentToFields() {
+    var val = invoiceResult.value.trim();
+    var parts = val.split(',');
+    
+    // 去掉 error 状态
+    invoiceResult.classList.remove('error');
+    
+    // 格式校验：必须是 8 个逗号分隔字段
+    if (parts.length === 8) {
+      invFields.forEach(function(f, i) {
+        f.value = parts[i];
+      });
+    } else {
+      invoiceResult.classList.add('error');
+    }
+    generate();
+  }
+
+  invoiceResult.addEventListener('input', parseContentToFields);
 
   // ---- 获取当前 QR 内容 ----
   function getContent() {
