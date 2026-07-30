@@ -520,24 +520,26 @@
       }
     }
 
-    // 中心「税」字 Logo
-    var logoSize = Math.round(size * 0.20);
-    var logoX = (size - logoSize) / 2;
-    var logoY = (size - logoSize) / 2;
+    // 中心「税」字 Logo（仅发票模式显示）
+    if (currentMode === 'invoice') {
+      var logoSize = Math.round(size * 0.20);
+      var logoX = (size - logoSize) / 2;
+      var logoY = (size - logoSize) / 2;
 
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(logoX, logoY, logoSize, logoSize);
-    ctx.restore();
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(logoX, logoY, logoSize, logoSize);
+      ctx.restore();
 
-    ctx.save();
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    var fontSize = Math.round(logoSize * 0.58);
-    ctx.font = 'bold ' + fontSize + 'px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
-    ctx.fillStyle = '#e8cf70';
-    ctx.fillText('税', size / 2, size / 2 + 1);
-    ctx.restore();
+      ctx.save();
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      var fontSize = Math.round(logoSize * 0.58);
+      ctx.font = 'bold ' + fontSize + 'px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+      ctx.fillStyle = '#e8cf70';
+      ctx.fillText('税', size / 2, size / 2 + 1);
+      ctx.restore();
+    }
 
     container.innerHTML = '';
     container.appendChild(canvas);
