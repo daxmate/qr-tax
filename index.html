@@ -241,6 +241,38 @@
 
   .btn:active { transform: scale(0.97); }
 
+  /* ---- PDF Text Modal ---- */
+  .pdf-text-body {
+    padding: 0 20px 20px;
+  }
+  .pdf-match-status {
+    font-size: 13px;
+    color: #475569;
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .pdf-text-area {
+    width: 100%;
+    height: 200px;
+    padding: 10px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 12px;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    resize: vertical;
+    white-space: pre;
+    color: #334155;
+    background: #f8fafc;
+    outline: none;
+  }
+  .pdf-text-area:focus { border-color: #6366f1; }
+  .pdf-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .pdf-btn-row .btn { flex: 1; }
+
   /* ---- Misc ---- */
   .size-hint {
     display: flex;
@@ -522,6 +554,24 @@
     </div>
     <div class="scanner-footer">
       <button class="btn btn-outline" id="scanner-upload-btn">📁 上传图片</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PDF 文本提取结果 Modal ===== -->
+<div id="pdf-text-modal" class="scanner-overlay hidden">
+  <div class="scanner-panel" style="max-width:500px">
+    <div class="scanner-header">
+      <span>📄 PDF 文本提取结果</span>
+      <button id="pdf-text-close" class="scanner-close">&times;</button>
+    </div>
+    <div class="pdf-text-body">
+      <div class="pdf-match-status" id="pdf-match-status"></div>
+      <textarea id="pdf-raw-text" class="pdf-text-area" readonly></textarea>
+      <div class="pdf-btn-row">
+        <button class="btn btn-outline" id="pdf-copy-text">复制文本</button>
+        <button class="btn btn-primary" id="pdf-got-it">知道了</button>
+      </div>
     </div>
   </div>
 </div>
@@ -849,63 +899,70 @@
 
   pdfBtn.addEventListener('click', function() { pdfInput.click(); });
 
-
-
   pdfInput.addEventListener('change', function(e) {
     var file = e.target.files[0];
-    if (!file) return;
+    if (!file) { pdfBtn.textContent = '📄 PDF'; return; }
 
-    pdfBtn.textContent = '⏳ 解析中…';
+    // 自动切换到发票模式
+    modeTabs.forEach(function(t) { t.classList.remove('active'); });
+    document.querySelector('[data-mode="invoice"]').classList.add('active');
+    currentMode = 'invoice';
+    invoicePanel.classList.remove('hidden');
+    customPanel.classList.add('hidden');
+
+    pdfBtn.textContent = '⏳ 提取中…';
     ensurePdfJs(function() {
-      ensureJsQR(function() {
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          var pdfData = new Uint8Array(ev.target.result);
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var pdfData = new Uint8Array(ev.target.result);
 
-          pdfjsLib.getDocument({ data: pdfData }).promise.then(function(pdf) {
-            // 尝试所有页面，最多 3 页
-            var maxPages = Math.min(pdf.numPages, 3);
-            var scanPromises = [];
+        pdfjsLib.getDocument({ data: pdfData }).promise.then(function(pdf) {
+          var maxPages = Math.min(pdf.numPages, 5);
+          var textPromises = [];
 
-            for (var p = 1; p <= maxPages; p++) {
-              scanPromises.push(
-                pdf.getPage(p).then(function(page) {
-                  var vp = page.getViewport({ scale: 2.0 });
-                  var canvas = document.createElement('canvas');
-                  canvas.width  = vp.width;
-                  canvas.height = vp.height;
-                  var ctx = canvas.getContext('2d');
-                  return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function() {
-                    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    return jsQR(imageData.data, imageData.width, imageData.height);
-                  });
-                })
-              );
-            }
+          for (var p = 1; p <= maxPages; p++) {
+            textPromises.push(getPageText(pdf, p));
+          }
 
-            return Promise.all(scanPromises).then(function(results) {
-              for (var i = 0; i < results.length; i++) {
-                if (results[i]) {
-                  return results[i];
-                }
-              }
-              return null;
-            });
-          }).then(function(code) {
-            if (code) {
-              handleScanResult(code.data.trim());
-              pdfBtn.textContent = '✅ 成功';
-            } else {
-              pdfBtn.textContent = '❌ 未找到二维码';
-            }
-            setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 2000);
-          }).catch(function(err) {
-            pdfBtn.textContent = '❌ 解析失败';
-            setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 2000);
+          return Promise.all(textPromises).then(function(pageTexts) {
+            return pageTexts.join('\n\n--- ' + pageTexts.length + ' 页 ---\n\n');
           });
-        };
-        reader.readAsArrayBuffer(file);
-      });
+        }).then(function(fullText) {
+          // 解析发票字段
+          var result = parseInvoiceText(fullText);
+
+          // 填入字段
+          invFields.forEach(function(f, i) {
+            f.value = result.fields[i];
+          });
+
+          // 更新内容框并重绘
+          invoiceResult.value = buildInvoiceString();
+          invoiceResult.classList.remove('error');
+          generate();
+
+          // 统计匹配数
+          var matchedCount = 0;
+          var unmatchedNames = [];
+          var fieldNames = ['版本标识', '发票类型', '发票代码', '发票号码', '金额', '开票日期', '校验码', '加密信息'];
+          result.matched.forEach(function(m, i) {
+            if (m) matchedCount++;
+            else if (i > 1) unmatchedNames.push(fieldNames[i]);
+          });
+
+          // 按钮反馈
+          pdfBtn.textContent = (matchedCount >= 6 ? '✅ ' : '⚠️ ') + matchedCount + '/8';
+
+          // 展示结果 modal
+          showPdfTextModal(fullText, matchedCount, unmatchedNames);
+
+          setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 4000);
+        }).catch(function(err) {
+          pdfBtn.textContent = '❌ 提取失败';
+          setTimeout(function() { pdfBtn.textContent = '📄 PDF'; }, 3000);
+        });
+      };
+      reader.readAsArrayBuffer(file);
     });
     pdfInput.value = '';
   });
@@ -935,6 +992,93 @@
   // 点击遮罩层关闭
   scannerModal.addEventListener('click', function(e) {
     if (e.target === scannerModal) stopScanner();
+  });
+
+  // ---- PDF 文本提取工具 ----
+  function getPageText(pdf, pageNum) {
+    return pdf.getPage(pageNum).then(function(page) {
+      return page.getTextContent().then(function(content) {
+        var items = content.items;
+        var LINE_TOLERANCE = 2;
+        var lines = [];
+        items.forEach(function(item) {
+          var y = item.transform[5];
+          var x = item.transform[4];
+          var placed = false;
+          for (var i = 0; i < lines.length; i++) {
+            if (Math.abs(lines[i].y - y) <= LINE_TOLERANCE) {
+              lines[i].items.push({ x: x, text: item.str });
+              placed = true;
+              break;
+            }
+          }
+          if (!placed) {
+            lines.push({ y: y, items: [{ x: x, text: item.str }] });
+          }
+        });
+        lines.sort(function(a, b) { return b.y - a.y; });
+        return lines.map(function(line) {
+          line.items.sort(function(a, b) { return a.x - b.x; });
+          return line.items.map(function(it) { return it.text; }).join('');
+        }).join('\n');
+      });
+    });
+  }
+
+  function parseInvoiceText(text) {
+    var fields = ['01', '32', '', '', '', '', '', ''];
+    var matched = [true, true, false, false, false, false, false, false];
+    var m;
+    m = text.match(/发票代码[：:]\s*(\d{12})/);
+    if (m) { fields[2] = m[1]; matched[2] = true; }
+    m = text.match(/发票号码[：:]\s*(\d{8,20})/);
+    if (m) { fields[3] = m[1]; matched[3] = true; }
+    m = text.match(/(?:价税合计|合计)[（(]小写[）)]\s*[：:（(]*\s*[¥￥]?\s*([\d,]+\.?\d*)/);
+    if (!m) m = text.match(/小写[）)]?\s*[¥￥]?\s*([\d,]+\.?\d*)/);
+    if (!m) m = text.match(/价税合计[：:（(]*\s*[¥￥]?\s*([\d,]+\.?\d*)/);
+    if (!m) m = text.match(/(\d+\.\d{2})\s*元/);
+    if (m) { fields[4] = m[1].replace(/,/g, ''); matched[4] = true; }
+    m = text.match(/开票日期[：:（(]*\s*(\d{4})\s*年?\s*(\d{2})\s*月?\s*(\d{2})\s*日?/);
+    if (!m) m = text.match(/开票日期[：:]\s*(\d{4})\s*[\-\/]\s*(\d{2})\s*[\-\/]\s*(\d{2})/);
+    if (m) { fields[5] = m[1] + m[2] + m[3]; matched[5] = true; }
+    m = text.match(/校验码[：:]\s*(\d{6,20})/);
+    if (m) { fields[6] = m[1]; matched[6] = true; }
+    return { fields: fields, matched: matched };
+  }
+
+  // ---- PDF Text Modal 控制 ----
+  var pdfTextModal = document.getElementById('pdf-text-modal');
+  var pdfTextClose = document.getElementById('pdf-text-close');
+  var pdfCopyBtn   = document.getElementById('pdf-copy-text');
+  var pdfGotIt     = document.getElementById('pdf-got-it');
+
+  function showPdfTextModal(fullText, matchedCount, unmatchedNames) {
+    document.getElementById('pdf-raw-text').value = fullText;
+    var statusEl = document.getElementById('pdf-match-status');
+    if (matchedCount >= 8) {
+      statusEl.innerHTML = '✅ <strong>全部字段已自动匹配并填入</strong>';
+    } else {
+      var html = '⚠️ 已自动匹配 <strong>' + matchedCount + '/8</strong> 个字段';
+      if (unmatchedNames.length) {
+        html += '<br>未匹配：' + unmatchedNames.join('、');
+      }
+      html += '<br>请从下方文本中复制相应内容手动填写';
+      statusEl.innerHTML = html;
+    }
+    pdfTextModal.classList.remove('hidden');
+  }
+
+  pdfTextClose.addEventListener('click', function() { pdfTextModal.classList.add('hidden'); });
+  pdfGotIt.addEventListener('click', function() { pdfTextModal.classList.add('hidden'); });
+  pdfCopyBtn.addEventListener('click', function() {
+    document.getElementById('pdf-raw-text').select();
+    navigator.clipboard.writeText(document.getElementById('pdf-raw-text').value).then(function() {
+      pdfCopyBtn.textContent = '✅ 已复制';
+      setTimeout(function() { pdfCopyBtn.textContent = '复制文本'; }, 2000);
+    });
+  });
+  pdfTextModal.addEventListener('click', function(e) {
+    if (e.target === pdfTextModal) pdfTextModal.classList.add('hidden');
   });
 
   // ---- 下载 ----
