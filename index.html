@@ -399,6 +399,12 @@
   .scanner-footer .btn { flex: 1; }
 
 </style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="二维码生成器">
+<link rel="apple-touch-icon" href="icon-192.svg">
 </head>
 <body>
 
@@ -960,6 +966,11 @@
   lightColor.addEventListener('input', autoGen);
   sizeRange.addEventListener('input', autoGen);
 
+
+  // ---- 注册 Service Worker (PWA) ----
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
 
   // ---- 启动 ----
   function boot() {
