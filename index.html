@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二维码生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+                 "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f1f5f9;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+
+  .container {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.06);
+    padding: 40px;
+    max-width: 560px;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .qr-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  #qr-container {
+    border: 8px solid #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    line-height: 0;
+    background: #fff;
+  }
+
+  #qr-container canvas {
+    display: block;
+    border-radius: 8px;
+  }
+
+  .placeholder {
+    width: 320px;
+    height: 320px;
+    background: #f8fafc;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 14px;
+  }
+
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .control-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.02em;
+  }
+
+  .control-group input[type="text"] {
+    padding: 10px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fafbfc;
+  }
+
+  .control-group input[type="text"]:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
+    background: #fff;
+  }
+
+  .color-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+  }
+
+  .color-row .control-group {
+    flex: 1;
+  }
+
+  .color-row input[type="color"] {
+    width: 100%;
+    height: 44px;
+    padding: 2px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    cursor: pointer;
+    background: none;
+  }
+
+  .color-row input[type="color"]:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.10);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: #4f46e5;
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(79,70,229,0.20);
+  }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-primary:active { background: #3730a3; }
+
+  .btn-outline {
+    background: transparent;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+  }
+  .btn-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .size-hint {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #94a3b8;
+    padding: 0 4px;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: #6366f1;
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #64748b;
+  }
+
+  .logo-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #fff;
+    color: #e8cf70;
+    border-radius: 6px;
+    font-size: 17px;
+    font-weight: 700;
+    border: 1px solid #e2e8f0;
+  }
+
+  @media (max-width: 500px) {
+    .container { padding: 24px 20px; }
+    .btn-row { flex-wrap: wrap; }
+    .btn { min-width: calc(50% - 5px); }
+    .color-row { flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>二维码生成器</h1>
+  <p class="subtitle">带「税」标的二维码</p>
+
+  <div class="qr-wrapper">
+    <div id="qr-container"><div class="placeholder">生成中…</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>内容</label>
+      <input type="text" id="text-input" value="https://example.com/tax" placeholder="输入网址或文本…">
+    </div>
+
+    <div class="control-group">
+      <label>尺寸</label>
+      <input type="range" id="size-range" min="200" max="600" value="320" step="10">
+      <div class="size-hint">
+        <span>小</span>
+        <span id="size-label">320×320</span>
+        <span>大</span>
+      </div>
+    </div>
+
+    <div class="color-row">
+      <div class="control-group">
+        <label>深色</label>
+        <input type="color" id="dark-color" value="#000000">
+      </div>
+      <div class="control-group">
+        <label>浅色</label>
+        <input type="color" id="light-color" value="#ffffff">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="generate-btn">生成</button>
+      <button class="btn btn-outline" id="download-btn">下载 PNG</button>
+      <button class="btn btn-outline" id="copy-btn">复制</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var container  = document.getElementById('qr-container');
+  var textInput  = document.getElementById('text-input');
+  var sizeRange  = document.getElementById('size-range');
+  var sizeLabel  = document.getElementById('size-label');
+  var darkColor  = document.getElementById('dark-color');
+  var lightColor = document.getElementById('light-color');
+  var genBtn     = document.getElementById('generate-btn');
+  var dldBtn     = document.getElementById('download-btn');
+  var copyBtn    = document.getElementById('copy-btn');
+
+  // ---- 工具：圆角矩形 ----
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ---- 核心渲染 ----
+  function generate() {
+    var text = textInput.value.trim();
+    if (!text) {
+      container.innerHTML = '<div class="placeholder">请输入内容</div>';
+      return;
+    }
+
+    var size  = parseInt(sizeRange.value, 10);
+    var dark  = darkColor.value;
+    var light = lightColor.value;
+
+    var canvas = document.createElement('canvas');
+    canvas.width  = size;
+    canvas.height = size;
+    var ctx = canvas.getContext('2d');
+
+    // ---- 1. 生成 QR 码 ----
+    var qr = qrcode(0, 'H');
+    qr.addData(text);
+    qr.make();
+
+    var modCount = qr.getModuleCount();
+    var cellSize = size / modCount;
+
+    for (var r = 0; r < modCount; r++) {
+      for (var c = 0; c < modCount; c++) {
+        ctx.fillStyle = qr.isDark(r, c) ? dark : light;
+        ctx.fillRect(c * cellSize, r * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
+      }
+    }
+
+    // ---- 2. 中心 Logo：白色圆角方底 + 淡黄色「税」（无衬线） ----
+    var logoSize = Math.round(size * 0.20);
+    var logoX = (size - logoSize) / 2;
+    var logoY = (size - logoSize) / 2;
+
+    // 白色方底（直角无圆角）
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(logoX, logoY, logoSize, logoSize);
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    var fontSize = Math.round(logoSize * 0.58);
+    ctx.font = 'bold ' + fontSize + 'px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#e8cf70';
+    ctx.fillText('税', size / 2, size / 2 + 1);
+    ctx.restore();
+
+    container.innerHTML = '';
+    container.appendChild(canvas);
+  }
+
+  // ---- 复制 ----
+  function copyQr() {
+    var cvs = container.querySelector('canvas');
+    if (!cvs) { generate(); setTimeout(copyQr, 50); return; }
+    cvs.toBlob(function(blob) {
+      navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]).then(function() {
+        copyBtn.textContent = '已复制';
+        copyBtn.style.borderColor = '#6366f1';
+        copyBtn.style.color = '#4f46e5';
+        setTimeout(function() {
+          copyBtn.textContent = '复制';
+          copyBtn.style.borderColor = '';
+          copyBtn.style.color = '';
+        }, 2000);
+      }).catch(function() {
+        copyBtn.textContent = '失败';
+        setTimeout(function() { copyBtn.textContent = '复制'; }, 2000);
+      });
+    });
+  }
+
+  // ---- 下载 ----
+  function download() {
+    var cvs = container.querySelector('canvas');
+    if (!cvs) { generate(); setTimeout(download, 50); return; }
+    var a = document.createElement('a');
+    a.download = '二维码_税.png';
+    a.href = cvs.toDataURL('image/png');
+    a.click();
+  }
+
+  // ---- 事件绑定 ----
+  sizeRange.addEventListener('input', function() {
+    sizeLabel.textContent = this.value + '\u00D7' + this.value;
+  });
+
+  genBtn.addEventListener('click', generate);
+  dldBtn.addEventListener('click', download);
+  copyBtn.addEventListener('click', copyQr);
+  textInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') generate();
+  });
+
+  var debounceTimer;
+  function autoGen() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(generate, 300);
+  }
+  darkColor.addEventListener('input', autoGen);
+  lightColor.addEventListener('input', autoGen);
+  sizeRange.addEventListener('input', autoGen);
+
+  // ---- 启动 ----
+  if (typeof qrcode !== 'undefined') {
+    generate();
+  } else {
+    container.innerHTML = '<div class="placeholder">加载中…</div>';
+    var chk = setInterval(function() {
+      if (typeof qrcode !== 'undefined') {
+        clearInterval(chk);
+        generate();
+      }
+    }, 100);
+  }
+})();
+</script>
+</body>
+</html>
