@@ -339,8 +339,8 @@
       </div>
 
       <div class="control-group" style="margin-top:12px">
-        <label>拼接结果</label>
-        <input type="text" id="invoice-result" readonly value="01,32,,26322000006250596931,448.00,20260729,,E867">
+        <label>二维码内容</label>
+        <input type="text" id="invoice-result" value="01,32,,26322000006250596931,448.00,20260729,,E867">
       </div>
     </div>
 
@@ -402,25 +402,30 @@
 
   var currentMode = 'invoice'; // 'invoice' | 'custom'
 
-  // ---- 拼接发票字段 ----
+  // ---- 拼接发票字段并更新内容框 ----
   function buildInvoiceString() {
     var parts = [];
     invFields.forEach(function(f) { parts.push(f.value); });
     return parts.join(',');
   }
 
-  function updateInvoiceResult() {
+  function syncFieldsToContent() {
     invoiceResult.value = buildInvoiceString();
+    generate();
   }
 
+  // 字段变化 → 更新内容框 → 重绘
   invFields.forEach(function(f) {
-    f.addEventListener('input', updateInvoiceResult);
+    f.addEventListener('input', syncFieldsToContent);
   });
+
+  // 内容框直接编辑 → 重绘（不回写字段）
+  invoiceResult.addEventListener('input', generate);
 
   // ---- 获取当前 QR 内容 ----
   function getContent() {
     if (currentMode === 'invoice') {
-      return buildInvoiceString();
+      return invoiceResult.value.trim();
     } else {
       return textInput.value.trim();
     }
@@ -567,9 +572,7 @@
   darkColor.addEventListener('input', autoGen);
   lightColor.addEventListener('input', autoGen);
   sizeRange.addEventListener('input', autoGen);
-  invFields.forEach(function(f) {
-    f.addEventListener('input', autoGen);
-  });
+
 
   // ---- 启动 ----
   function boot() {
